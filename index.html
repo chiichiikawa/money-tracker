@@ -50,22 +50,17 @@
             margin-bottom: 20px;
             box-shadow: 0 2px 8px rgba(0,0,0,0.08);
         }
-        input, select, button {
+        button {
             width: 100%;
-            padding: 14px;
+            padding: 16px;
             margin: 8px 0;
             border-radius: 12px;
-            border: 1px solid #ddd;
-            font-size: 16px;
-            box-sizing: border-box;
-        }
-        button {
-            background: #1e88e5;
-            color: white;
             border: none;
+            font-size: 18px;
             font-weight: bold;
-            margin-top: 10px;
         }
+        .btn-meal { background: #66bb6a; color: white; }
+        .btn-car { background: #42a5f5; color: white; }
         .amount {
             font-size: 38px;
             font-weight: bold;
@@ -85,6 +80,10 @@
             padding: 14px 0;
             border-bottom: 1px solid #eee;
         }
+        .monthly-list {
+            max-height: 400px;
+            overflow-y: auto;
+        }
     </style>
 </head>
 <body>
@@ -103,15 +102,10 @@
             <div class="card">
                 <h2>今日 / 補數</h2>
                 <label>日期：</label>
-                <input type="date" id="record-date">
+                <input type="date" id="record-date" style="margin-bottom:15px;">
                 
-                <label>飯錢：</label>
-                <input type="number" id="meal-input" placeholder="今日飯錢">
-                
-                <label>車費：</label>
-                <input type="number" id="car-input" placeholder="今日車費">
-                
-                <button onclick="saveToday()">儲存記錄</button>
+                <button class="btn-meal" onclick="addMeal()">🍚 飯錢</button>
+                <button class="btn-car" onclick="addCar()">🚕 車費</button>
             </div>
         </div>
 
@@ -134,7 +128,7 @@
             
             <div class="card">
                 <h3>每日慳錢明細</h3>
-                <div id="daily-list" class="daily-list"></div>
+                <div id="daily-list"></div>
             </div>
         </div>
 
@@ -152,7 +146,7 @@
 
             <div class="card">
                 <h3>月度項目剩餘</h3>
-                <div id="monthly-review-list"></div>
+                <div id="monthly-review-list" class="monthly-list"></div>
             </div>
         </div>
 
@@ -176,7 +170,7 @@
         let settings = { dailyCar: 70, dailyMealBudget: 250 };
         let monthlyBudgets = { chii:700, pretty:350, larp_cot:1600, more_food:1500, idol:2000, uber:600, utilities:500, sfaa:1680 };
         let monthlySpent = {};
-        let dailyRecords = {};   // { "2025-06-05": { cars: [50,10], meals: [100,80] } }
+        let dailyRecords = {};   // { "2025-06-05": { cars: [50,10], meals: [180] } }
 
         function init() {
             loadData();
@@ -209,24 +203,30 @@
             if (n === 2 || n === 3) updateReviews();
         }
 
-        function saveToday() {
+        function addMeal() {
             const date = document.getElementById('record-date').value;
-            const meal = parseFloat(document.getElementById('meal-input').value) || 0;
-            const car = parseFloat(document.getElementById('car-input').value) || 0;
-
+            const amount = parseFloat(prompt("輸入今日飯錢："));
+            if (!amount || amount <= 0) return;
+            
             if (!dailyRecords[date]) dailyRecords[date] = { cars: [], meals: [] };
-
-            if (meal > 0) dailyRecords[date].meals.push(meal);
-            if (car > 0) dailyRecords[date].cars.push(car);
-
+            dailyRecords[date].meals.push(amount);
+            
             saveData();
-            
-            // 清空輸入欄
-            document.getElementById('meal-input').value = '';
-            document.getElementById('car-input').value = '';
-            
             updateReviews();
-            alert('✅ 記錄已儲存');
+            alert('✅ 飯錢已記錄');
+        }
+
+        function addCar() {
+            const date = document.getElementById('record-date').value;
+            const amount = parseFloat(prompt("輸入今日車費："));
+            if (!amount || amount <= 0) return;
+            
+            if (!dailyRecords[date]) dailyRecords[date] = { cars: [], meals: [] };
+            dailyRecords[date].cars.push(amount);
+            
+            saveData();
+            updateReviews();
+            alert('✅ 車費已記錄');
         }
 
         function renderCategorySelect() {
@@ -266,34 +266,41 @@
                 const save = budget - used;
                 totalSave += save;
 
-                const carStr = r.cars && r.cars.length ? r.cars.join('/') : '0';
-                const mealStr = r.meals && r.meals.length ? r.meals.join('/') : '0';
+                const carStr = r.cars && r.cars.length ? r.cars.join(' + ') : '0';
+                const mealStr = r.meals && r.meals.length ? r.meals.join(' + ') : '0';
 
                 html += `
                     <div class="daily-item">
                         <strong>${date}</strong><br>
-                        慳 <span class="${save >= 0 ? 'positive' : 'negative'}">$${Math.round(save)}</span> 
-                        (車: ${carStr}　飯: ${mealStr})
+                        慳 <span class="${save >= 0 ? 'positive' : 'negative'}">$${Math.round(save)}</span><br>
+                        <small>車: ${carStr}　　飯: ${mealStr}</small>
                     </div>`;
             });
 
             document.getElementById('total-savings').textContent = `$${Math.round(totalSave)}`;
             document.getElementById('total-savings').className = `amount ${totalSave >= 0 ? 'positive' : 'negative'}`;
-            document.getElementById('daily-list').innerHTML = html || '<p style="text-align:center; color:#888; padding:30px;">仲未有記錄</p>';
+            document.getElementById('daily-list').innerHTML = html || '<p style="text-align:center; color:#888; padding:40px;">仲未有記錄</p>';
 
             // 今日慳到
             const todayStr = new Date().toISOString().split('T')[0];
             const todayR = dailyRecords[todayStr] || {cars:[], meals:[]};
             const todayCar = todayR.cars.reduce((a,b)=>a+b,0);
             const todayMeal = todayR.meals.reduce((a,b)=>a+b,0);
-            const todayUsed = settings.dailyCar + todayCar + todayMeal;
-            const todaySave = settings.dailyCar + settings.dailyMealBudget - todayUsed;
+            const todaySave = settings.dailyCar + settings.dailyMealBudget - (settings.dailyCar + todayCar + todayMeal);
 
             document.getElementById('today-savings-big').textContent = `$${Math.round(todaySave)}`;
             document.getElementById('today-savings-big').className = `amount ${todaySave >= 0 ? 'positive' : 'negative'}`;
 
-            // 今月總慳（暫時用全部）
             document.getElementById('month-total-savings').textContent = `$${Math.round(totalSave)}`;
+
+            // 月度項目
+            let mhtml = '';
+            Object.keys(monthlyBudgets).forEach(k => {
+                const name = k === 'utilities' ? '水電' : (k === 'chii' ? 'Chii' : k);
+                const remain = monthlyBudgets[k] - (monthlySpent[k]||0);
+                mhtml += `<div class="daily-item"><strong>${name}</strong>　剩餘 <span class="${remain>=0?'positive':'negative'}">$${remain}</span></div>`;
+            });
+            document.getElementById('monthly-review-list').innerHTML = mhtml;
         }
 
         function saveSettings() {
