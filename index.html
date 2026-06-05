@@ -28,7 +28,7 @@
         }
         .nav button {
             flex: 1;
-            padding: 16px 8px;
+            padding: 16px 6px;
             background: none;
             border: none;
             font-size: 15px;
@@ -41,13 +41,8 @@
             border-bottom: 3px solid #1e88e5;
             font-weight: 600;
         }
-        .tab {
-            display: none;
-            padding: 20px;
-        }
-        .tab.active {
-            display: block;
-        }
+        .tab { display: none; padding: 20px; }
+        .tab.active { display: block; }
         .card {
             background: #f8fafc;
             border-radius: 16px;
@@ -62,6 +57,7 @@
             border-radius: 12px;
             border: 1px solid #ddd;
             font-size: 16px;
+            box-sizing: border-box;
         }
         button {
             background: #1e88e5;
@@ -70,11 +66,8 @@
             font-weight: bold;
             margin-top: 10px;
         }
-        button:hover {
-            background: #1565c0;
-        }
         .amount {
-            font-size: 32px;
+            font-size: 36px;
             font-weight: bold;
             text-align: center;
         }
@@ -82,10 +75,11 @@
         .negative { color: #c62828; }
         .review-box {
             text-align: center;
-            padding: 25px;
+            padding: 30px 20px;
             background: white;
             border-radius: 16px;
             margin: 15px 0;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
         }
     </style>
 </head>
@@ -103,14 +97,17 @@
         <!-- 今日入數 -->
         <div id="tab0" class="tab active">
             <div class="card">
-                <h2>今日開支</h2>
+                <h2>今日 / 補數</h2>
+                <label>日期：</label>
+                <input type="date" id="record-date">
+                
                 <label>飯錢：</label>
-                <input type="number" id="meal-input" value="250">
+                <input type="number" id="meal-input" placeholder="今日飯錢">
                 
-                <label>其他開支：</label>
-                <input type="number" id="extra-input" placeholder="例如飲品、交通等">
+                <label>車費：</label>
+                <input type="number" id="car-input" placeholder="今日車費">
                 
-                <button onclick="saveToday()">儲存今日記錄</button>
+                <button onclick="saveToday()">儲存記錄</button>
             </div>
         </div>
 
@@ -119,7 +116,7 @@
             <div class="card">
                 <h2>月度開支記錄</h2>
                 <select id="category-select"></select>
-                <input type="number" id="monthly-amount" placeholder="金額">
+                <input type="number" id="monthly-amount" placeholder="金額" style="font-size:18px;">
                 <button onclick="addMonthlyExpense()">記錄月度開支</button>
             </div>
         </div>
@@ -129,7 +126,7 @@
             <div class="review-box">
                 <h2>今日慳到</h2>
                 <div id="today-savings" class="amount positive">$0</div>
-                <p>（車費$70 + 飯錢預算 - 實際用）</p>
+                <p id="today-detail" style="margin-top:10px; color:#555;"></p>
             </div>
         </div>
 
@@ -150,7 +147,7 @@
         <div id="tab4" class="tab">
             <div class="card">
                 <h2>設定</h2>
-                <label>每日車費</label>
+                <label>每日車費預算</label>
                 <input type="number" id="daily-car" value="70">
                 
                 <label>每日飯錢預算</label>
@@ -164,13 +161,18 @@
 
     <script>
         let settings = { dailyCar: 70, dailyMealBudget: 250 };
-        let monthlyBudgets = { chii:700, pretty:350, larp_cot:1600, more_food:1500, idol:2000, uber:600, utilities:500, sfaa:1680 };
+        let monthlyBudgets = {
+            chii:700, pretty:350, larp_cot:1600, more_food:1500,
+            idol:2000, uber:600, utilities:500, sfaa:1680
+        };
         let monthlySpent = {};
         let dailyRecords = {};
 
         function init() {
             loadData();
             renderCategorySelect();
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('record-date').value = today;
             switchTab(0);
             updateReviews();
         }
@@ -194,30 +196,32 @@
             document.querySelectorAll('.nav button').forEach(b => b.classList.remove('active'));
             document.getElementById(`tab${n}`).classList.add('active');
             document.querySelectorAll('.nav button')[n].classList.add('active');
-            
             if (n === 2 || n === 3) updateReviews();
         }
 
         function saveToday() {
-            const today = new Date().toISOString().split('T')[0];
+            const date = document.getElementById('record-date').value;
             const meal = parseFloat(document.getElementById('meal-input').value) || 0;
-            const extra = parseFloat(document.getElementById('extra-input').value) || 0;
-            dailyRecords[today] = { meal, extra };
+            const car = parseFloat(document.getElementById('car-input').value) || 0;
+            
+            dailyRecords[date] = { meal, extra: car };  // 用 extra 儲存車費
             saveData();
             updateReviews();
-            alert('✅ 今日記錄已儲存');
+            alert('✅ 記錄已儲存');
         }
 
         function renderCategorySelect() {
             const select = document.getElementById('category-select');
             select.innerHTML = '';
+            const names = {
+                chii: "Chii", pretty: "Pretty", larp_cot: "Larp/Cot",
+                more_food: "額外食物", idol: "Idol", uber: "Uber",
+                utilities: "水電", sfaa: "SFAA"
+            };
             Object.keys(monthlyBudgets).forEach(k => {
                 const opt = document.createElement('option');
                 opt.value = k;
-                opt.textContent = k === 'chii' ? 'Chii' : 
-                                 k === 'pretty' ? 'Pretty' :
-                                 k === 'larp_cot' ? 'Larp/Cot' :
-                                 k === 'more_food' ? '額外食物' : k;
+                opt.textContent = names[k] || k;
                 select.appendChild(opt);
             });
         }
@@ -225,7 +229,7 @@
         function addMonthlyExpense() {
             const cat = document.getElementById('category-select').value;
             const amt = parseFloat(document.getElementById('monthly-amount').value);
-            if (!amt) return alert('請輸入金額');
+            if (!amt || amt <= 0) return alert('請輸入有效金額');
             if (!monthlySpent[cat]) monthlySpent[cat] = 0;
             monthlySpent[cat] += amt;
             saveData();
@@ -235,39 +239,47 @@
         }
 
         function updateReviews() {
-            const today = new Date().toISOString().split('T')[0];
-            const record = dailyRecords[today] || {meal: settings.dailyMealBudget, extra:0};
-            const todayUsed = settings.dailyCar + record.meal + (record.extra||0);
+            const todayStr = new Date().toISOString().split('T')[0];
+            const todayRecord = dailyRecords[todayStr] || {meal:0, extra:0};
+            const todayCar = todayRecord.extra || 0;
+            const todayMeal = todayRecord.meal || 0;
+            const todayUsed = settings.dailyCar + todayMeal + todayCar;
             const todayBudget = settings.dailyCar + settings.dailyMealBudget;
             const todaySave = todayBudget - todayUsed;
 
-            document.getElementById('today-savings').textContent = `$${todaySave}`;
+            document.getElementById('today-savings').textContent = `$${Math.round(todaySave)}`;
             document.getElementById('today-savings').className = `amount ${todaySave >= 0 ? 'positive' : 'negative'}`;
+            document.getElementById('today-detail').innerHTML = `
+                車費：$${todayCar}　飯錢：$${todayMeal}<br>
+                預算：$${todayBudget}　已用：$${todayUsed}
+            `;
 
-            // 今月review
+            // 今月總慳
             let totalDailySave = 0;
-            Object.values(dailyRecords).forEach(r => {
-                const used = settings.dailyCar + r.meal + (r.extra||0);
+            Object.keys(dailyRecords).forEach(date => {
+                const r = dailyRecords[date];
+                const used = settings.dailyCar + (r.meal||0) + (r.extra||0);
                 totalDailySave += (settings.dailyCar + settings.dailyMealBudget - used);
             });
 
             let totalMonthlyRemain = 0;
             Object.keys(monthlyBudgets).forEach(k => {
-                const budget = monthlyBudgets[k];
-                const spent = monthlySpent[k] || 0;
-                totalMonthlyRemain += (budget - spent);
+                totalMonthlyRemain += monthlyBudgets[k] - (monthlySpent[k]||0);
             });
 
-            const grandTotalSave = totalDailySave + totalMonthlyRemain;
-            document.getElementById('month-total-savings').textContent = `$${Math.round(grandTotalSave)}`;
-            document.getElementById('month-total-savings').className = `amount ${grandTotalSave >= 0 ? 'positive' : 'negative'}`;
+            const grandTotal = totalDailySave + totalMonthlyRemain;
+            document.getElementById('month-total-savings').textContent = `$${Math.round(grandTotal)}`;
+            document.getElementById('month-total-savings').className = `amount ${grandTotal >= 0 ? 'positive' : 'negative'}`;
 
             // 月度項目
             let html = '';
             Object.keys(monthlyBudgets).forEach(k => {
+                const name = k === 'utilities' ? '水電' : 
+                            (k === 'chii' ? 'Chii' : k);
                 const remain = monthlyBudgets[k] - (monthlySpent[k]||0);
-                html += `<div style="padding:10px 0;border-bottom:1px solid #eee;">
-                    <strong>${k}</strong> 剩餘 <span class="${remain>=0?'positive':'negative'}">$${remain}</span>
+                html += `<div style="padding:12px 0; border-bottom:1px solid #eee; display:flex; justify-content:space-between;">
+                    <span><strong>${name}</strong></span>
+                    <span class="${remain>=0?'positive':'negative'}">剩 $${remain}</span>
                 </div>`;
             });
             document.getElementById('monthly-review-list').innerHTML = html;
