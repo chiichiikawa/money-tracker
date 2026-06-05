@@ -67,7 +67,7 @@
             margin-top: 10px;
         }
         .amount {
-            font-size: 36px;
+            font-size: 38px;
             font-weight: bold;
             text-align: center;
         }
@@ -75,11 +75,22 @@
         .negative { color: #c62828; }
         .review-box {
             text-align: center;
-            padding: 30px 20px;
+            padding: 25px 20px;
             background: white;
             border-radius: 16px;
             margin: 15px 0;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            box-shadow: 0 3px 12px rgba(0,0,0,0.1);
+        }
+        .daily-list {
+            max-height: 500px;
+            overflow-y: auto;
+        }
+        .daily-item {
+            padding: 12px 0;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
     </style>
 </head>
@@ -89,7 +100,7 @@
         <div class="nav">
             <button onclick="switchTab(0)" class="active">今日入數</button>
             <button onclick="switchTab(1)">今月入數</button>
-            <button onclick="switchTab(2)">今日review</button>
+            <button onclick="switchTab(2)">每日review</button>
             <button onclick="switchTab(3)">今月review</button>
             <button onclick="switchTab(4)">設定</button>
         </div>
@@ -121,12 +132,16 @@
             </div>
         </div>
 
-        <!-- 今日review -->
+        <!-- 每日review -->
         <div id="tab2" class="tab">
             <div class="review-box">
-                <h2>今日慳到</h2>
-                <div id="today-savings" class="amount positive">$0</div>
-                <p id="today-detail" style="margin-top:10px; color:#555;"></p>
+                <h2>現時為止總慳到</h2>
+                <div id="total-savings" class="amount positive">$0</div>
+            </div>
+            
+            <div class="card">
+                <h3>每日慳錢記錄</h3>
+                <div id="daily-list" class="daily-list"></div>
             </div>
         </div>
 
@@ -137,6 +152,11 @@
                 <div id="month-total-savings" class="amount positive">$0</div>
             </div>
             
+            <div class="review-box">
+                <h3>今日慳到</h3>
+                <div id="today-savings-big" class="amount positive">$0</div>
+            </div>
+
             <div class="card">
                 <h3>月度項目剩餘</h3>
                 <div id="monthly-review-list"></div>
@@ -161,10 +181,7 @@
 
     <script>
         let settings = { dailyCar: 70, dailyMealBudget: 250 };
-        let monthlyBudgets = {
-            chii:700, pretty:350, larp_cot:1600, more_food:1500,
-            idol:2000, uber:600, utilities:500, sfaa:1680
-        };
+        let monthlyBudgets = { chii:700, pretty:350, larp_cot:1600, more_food:1500, idol:2000, uber:600, utilities:500, sfaa:1680 };
         let monthlySpent = {};
         let dailyRecords = {};
 
@@ -204,7 +221,7 @@
             const meal = parseFloat(document.getElementById('meal-input').value) || 0;
             const car = parseFloat(document.getElementById('car-input').value) || 0;
             
-            dailyRecords[date] = { meal, extra: car };  // 用 extra 儲存車費
+            dailyRecords[date] = { meal, extra: car };
             saveData();
             updateReviews();
             alert('✅ 記錄已儲存');
@@ -213,11 +230,7 @@
         function renderCategorySelect() {
             const select = document.getElementById('category-select');
             select.innerHTML = '';
-            const names = {
-                chii: "Chii", pretty: "Pretty", larp_cot: "Larp/Cot",
-                more_food: "額外食物", idol: "Idol", uber: "Uber",
-                utilities: "水電", sfaa: "SFAA"
-            };
+            const names = { chii:"Chii", pretty:"Pretty", larp_cot:"Larp/Cot", more_food:"額外食物", idol:"Idol", uber:"Uber", utilities:"水電", sfaa:"SFAA" };
             Object.keys(monthlyBudgets).forEach(k => {
                 const opt = document.createElement('option');
                 opt.value = k;
@@ -239,48 +252,47 @@
         }
 
         function updateReviews() {
-            const todayStr = new Date().toISOString().split('T')[0];
-            const todayRecord = dailyRecords[todayStr] || {meal:0, extra:0};
-            const todayCar = todayRecord.extra || 0;
-            const todayMeal = todayRecord.meal || 0;
-            const todayUsed = settings.dailyCar + todayMeal + todayCar;
-            const todayBudget = settings.dailyCar + settings.dailyMealBudget;
-            const todaySave = todayBudget - todayUsed;
-
-            document.getElementById('today-savings').textContent = `$${Math.round(todaySave)}`;
-            document.getElementById('today-savings').className = `amount ${todaySave >= 0 ? 'positive' : 'negative'}`;
-            document.getElementById('today-detail').innerHTML = `
-                車費：$${todayCar}　飯錢：$${todayMeal}<br>
-                預算：$${todayBudget}　已用：$${todayUsed}
-            `;
-
-            // 今月總慳
-            let totalDailySave = 0;
-            Object.keys(dailyRecords).forEach(date => {
+            // 總慳到（所有日子）
+            let totalSave = 0;
+            const dailyListHTML = [];
+            
+            Object.keys(dailyRecords).sort().reverse().forEach(date => {
                 const r = dailyRecords[date];
                 const used = settings.dailyCar + (r.meal||0) + (r.extra||0);
-                totalDailySave += (settings.dailyCar + settings.dailyMealBudget - used);
+                const budget = settings.dailyCar + settings.dailyMealBudget;
+                const save = budget - used;
+                totalSave += save;
+
+                dailyListHTML.push(`
+                    <div class="daily-item">
+                        <span><strong>${date}</strong></span>
+                        <span class="${save >= 0 ? 'positive' : 'negative'}">慳 $${Math.round(save)}</span>
+                    </div>
+                `);
             });
 
-            let totalMonthlyRemain = 0;
-            Object.keys(monthlyBudgets).forEach(k => {
-                totalMonthlyRemain += monthlyBudgets[k] - (monthlySpent[k]||0);
-            });
+            document.getElementById('total-savings').textContent = `$${Math.round(totalSave)}`;
+            document.getElementById('total-savings').className = `amount ${totalSave >= 0 ? 'positive' : 'negative'}`;
+            document.getElementById('daily-list').innerHTML = dailyListHTML.join('') || '<p style="text-align:center; color:#888; padding:20px;">仲未有記錄</p>';
 
-            const grandTotal = totalDailySave + totalMonthlyRemain;
-            document.getElementById('month-total-savings').textContent = `$${Math.round(grandTotal)}`;
-            document.getElementById('month-total-savings').className = `amount ${grandTotal >= 0 ? 'positive' : 'negative'}`;
+            // 今月review
+            let monthTotalSave = totalSave; // 暫時用總數，之後可再優化只計本月
+            document.getElementById('month-total-savings').textContent = `$${Math.round(monthTotalSave)}`;
+
+            // 今日慳到（大顯示）
+            const todayStr = new Date().toISOString().split('T')[0];
+            const todayRecord = dailyRecords[todayStr] || {meal:0, extra:0};
+            const todayUsed = settings.dailyCar + (todayRecord.meal||0) + (todayRecord.extra||0);
+            const todaySave = settings.dailyCar + settings.dailyMealBudget - todayUsed;
+            document.getElementById('today-savings-big').textContent = `$${Math.round(todaySave)}`;
+            document.getElementById('today-savings-big').className = `amount ${todaySave >= 0 ? 'positive' : 'negative'}`;
 
             // 月度項目
             let html = '';
             Object.keys(monthlyBudgets).forEach(k => {
-                const name = k === 'utilities' ? '水電' : 
-                            (k === 'chii' ? 'Chii' : k);
+                const name = k === 'utilities' ? '水電' : (k === 'chii' ? 'Chii' : k);
                 const remain = monthlyBudgets[k] - (monthlySpent[k]||0);
-                html += `<div style="padding:12px 0; border-bottom:1px solid #eee; display:flex; justify-content:space-between;">
-                    <span><strong>${name}</strong></span>
-                    <span class="${remain>=0?'positive':'negative'}">剩 $${remain}</span>
-                </div>`;
+                html += `<div class="daily-item"><span><strong>${name}</strong></span><span class="${remain>=0?'positive':'negative'}">剩 $${remain}</span></div>`;
             });
             document.getElementById('monthly-review-list').innerHTML = html;
         }
