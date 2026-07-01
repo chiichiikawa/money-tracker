@@ -3,312 +3,1347 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>錢錢記</title>
+    <title>記帳本 • 每日預算</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&amp;family=Inter:wght@400;500;600&amp;display=swap');
+        
+        :root {
+            --primary: #10b981;
+        }
+        
         body {
-            font-family: system-ui, -apple-system, sans-serif;
-            background: linear-gradient(135deg, #9ECCE8 0%, #B4D4E8 100%);
-            margin: 0;
-            padding: 0;
-            color: #333;
+            font-family: 'Noto Sans TC', 'Inter', system-ui, -apple-system, sans-serif;
         }
-        .container {
-            max-width: 900px;
-            margin: 0 auto;
-            background: white;
-            min-height: 100vh;
+        
+        .section {
+            display: none;
         }
-        .nav {
-            display: flex;
-            background: #f8fafc;
-            border-bottom: 1px solid #ddd;
-            position: sticky;
-            top: 0;
-            z-index: 10;
+        
+        .section.active {
+            display: block;
         }
-        .nav button {
-            flex: 1;
-            padding: 16px 6px;
-            background: none;
-            border: none;
-            font-size: 15px;
-            cursor: pointer;
-            color: #555;
+        
+        .nav-btn {
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
         }
-        .nav button.active {
-            background: white;
-            color: #1e88e5;
-            border-bottom: 3px solid #1e88e5;
-            font-weight: 600;
+        
+        .nav-btn.active {
+            background-color: #10b981;
+            color: white;
+            box-shadow: 0 10px 15px -3px rgb(16 185 129 / 0.3);
         }
-        .tab { display: none; padding: 20px; }
-        .tab.active { display: block; }
-        .card {
-            background: #f8fafc;
-            border-radius: 16px;
-            padding: 20px;
-            margin-bottom: 20px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        
+        .expense-card {
+            transition: transform 0.2s cubic-bezier(0.4, 0.0, 0.2, 1), box-shadow 0.2s;
         }
-        button {
-            width: 100%;
-            padding: 18px;
-            margin: 10px 0;
-            border-radius: 12px;
-            border: none;
-            font-size: 18px;
-            font-weight: bold;
+        
+        .expense-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
         }
-        .btn-meal { background: #66bb6a; color: white; }
-        .btn-car { background: #42a5f5; color: white; }
+        
+        .stat-value {
+            font-variant-numeric: tabular-nums;
+        }
+        
+        .over-budget {
+            color: #ef4444 !important;
+            font-weight: 700;
+        }
+        
+        .modal {
+            animation: modalPop 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        
+        @keyframes modalPop {
+            0% { transform: scale(0.8) translateY(20px); opacity: 0; }
+            100% { transform: scale(1) translateY(0); opacity: 1; }
+        }
+        
         .amount {
-            font-size: 42px;
-            font-weight: bold;
-            text-align: center;
+            font-variant-numeric: tabular-nums;
+            font-feature-settings: "tnum";
         }
-        .positive { color: #2e7d32; }
-        .negative { color: #c62828; }
-        .review-box {
-            text-align: center;
-            padding: 30px 20px;
-            background: white;
-            border-radius: 16px;
-            margin: 15px 0;
-            box-shadow: 0 3px 12px rgba(0,0,0,0.1);
+        
+        .budget-bar {
+            height: 6px;
+            background: linear-gradient(to right, #10b981, #34d399);
+            transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
         }
-        .daily-item {
-            padding: 14px 0;
-            border-bottom: 1px solid #eee;
+        
+        .budget-bar.over {
+            background: linear-gradient(to right, #ef4444, #f87171);
+        }
+        
+        .money-text {
+            font-variant-numeric: tabular-nums;
+        }
+        
+        .quick-btn {
+            transition: all 0.1s ease;
+        }
+        
+        .quick-btn:active {
+            transform: scale(0.95);
+        }
+        
+        .category-row {
+            transition: background-color 0.1s ease;
+        }
+        
+        .category-row:hover {
+            background-color: #f8fafc;
+        }
+        
+        .hk-money {
+            font-feature-settings: "tnum";
         }
     </style>
 </head>
-<body>
-    <div class="container">
-
-        <div class="nav">
-            <button onclick="switchTab(0)" class="active">今日入數</button>
-            <button onclick="switchTab(1)">今月入數</button>
-            <button onclick="switchTab(2)">每日review</button>
-            <button onclick="switchTab(3)">今月review</button>
-            <button onclick="switchTab(4)">設定</button>
-        </div>
-
-        <!-- 今日入數 -->
-        <div id="tab0" class="tab active">
-            <div class="card">
-                <h2>今日 / 補數</h2>
-                <label>日期：</label>
-                <input type="date" id="record-date" style="margin-bottom:15px;">
-                
-                <button class="btn-meal" onclick="addMeal()">🍚 飯錢</button>
-                <button class="btn-car" onclick="addCar()">🚕 車費</button>
-            </div>
-        </div>
-
-        <!-- 今月入數 -->
-        <div id="tab1" class="tab">
-            <div class="card">
-                <h2>月度開支記錄</h2>
-                <select id="category-select"></select>
-                <input type="number" id="monthly-amount" placeholder="金額" style="font-size:18px; margin:10px 0;">
-                <button onclick="addMonthlyExpense()">記錄月度開支</button>
-                <p id="monthly-log" style="margin-top:15px; font-size:14px; color:#555;"></p>
-            </div>
-        </div>
-
-        <!-- 每日review -->
-        <div id="tab2" class="tab">
-            <div class="review-box">
-                <h2>今日慳到</h2>
-                <div id="today-savings" class="amount positive">$0</div>
-            </div>
-            <div class="card">
-                <h3>今日明細</h3>
-                <div id="today-detail"></div>
-            </div>
-        </div>
-
-        <!-- 今月review -->
-        <div id="tab3" class="tab">
-            <div class="review-box">
-                <h2>今日慳到</h2>
-                <div id="today-savings-month" class="amount positive">$0</div>
+<body class="bg-slate-50">
+    <!-- Header -->
+    <div class="bg-white border-b border-slate-200 sticky top-0 z-50">
+        <div class="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
+            <div class="flex items-center gap-x-3">
+                <div class="w-11 h-11 bg-emerald-500 rounded-2xl flex items-center justify-center shadow-lg shadow-emerald-500/30">
+                    <i class="fa-solid fa-wallet text-white text-2xl"></i>
+                </div>
+                <div>
+                    <h1 class="text-2xl font-bold text-slate-800 tracking-tight">記帳本</h1>
+                    <p class="text-xs text-emerald-600 font-medium -mt-1">每日預算追蹤</p>
+                </div>
             </div>
             
-            <div class="review-box">
-                <h2>今個月累計慳到</h2>
-                <div id="month-total-savings" class="amount positive">$0</div>
+            <div class="flex items-center gap-x-2 text-sm">
+                <div id="current-date" 
+                     class="px-3 py-1.5 bg-slate-100 text-slate-600 rounded-2xl text-xs font-medium flex items-center gap-x-1.5">
+                    <i class="fa-regular fa-calendar text-emerald-500"></i>
+                    <span id="date-text"></span>
+                </div>
             </div>
+        </div>
+    </div>
 
-            <div class="card">
-                <h3>月度項目剩餘</h3>
-                <div id="monthly-review-list"></div>
+    <!-- HOME PAGE -->
+    <div id="home" class="section active max-w-4xl mx-auto px-4 py-6">
+        <div class="mb-6">
+            <div class="flex items-end justify-between mb-2">
+                <div>
+                    <p class="text-emerald-600 text-sm font-semibold tracking-wider">今日</p>
+                    <h2 class="text-3xl font-bold text-slate-800" id="home-today-date"></h2>
+                </div>
+                <div class="text-right">
+                    <div id="home-today-remaining" 
+                         class="text-4xl font-bold tabular-nums tracking-tighter"></div>
+                    <p class="text-xs text-slate-500 -mt-1">今日剩餘預算</p>
+                </div>
+            </div>
+            
+            <!-- Quick today progress -->
+            <div class="bg-white rounded-3xl p-4 shadow-sm border border-slate-100">
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <div class="flex justify-between text-xs mb-1.5">
+                            <span class="text-slate-500">車錢</span>
+                            <span id="home-transport" class="font-mono text-sm font-semibold"></span>
+                        </div>
+                        <div class="h-2 bg-slate-100 rounded-full overflow-hidden">
+                            <div id="home-transport-bar" class="h-2 rounded-full transition-all" style="width: 0%"></div>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="flex justify-between text-xs mb-1.5">
+                            <span class="text-slate-500">飯錢</span>
+                            <span id="home-food" class="font-mono text-sm font-semibold"></span>
+                        </div>
+                        <div class="h-2 bg-slate-100 rounded-full overflow-hidden">
+                            <div id="home-food-bar" class="h-2 rounded-full transition-all" style="width: 0%"></div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
 
-        <!-- 設定 -->
-        <div id="tab4" class="tab">
-            <div class="card">
-                <h2>設定</h2>
-                <label>每日車費預算</label>
-                <input type="number" id="daily-car" value="70">
+        <!-- Monthly surplus quick view -->
+        <div class="mb-8">
+            <div class="flex items-center justify-between mb-2 px-1">
+                <p class="text-emerald-600 text-sm font-semibold tracking-wider">本月每日淨返</p>
+                <button onclick="showSection('monthly')" 
+                        class="text-xs px-3 py-1 text-emerald-600 hover:bg-emerald-50 rounded-2xl flex items-center gap-x-1 transition-colors">
+                    <span>查看詳情</span> <i class="fa-solid fa-arrow-right text-xs"></i>
+                </button>
+            </div>
+            <div id="home-monthly-surplus"
+                 class="bg-white border border-slate-100 shadow-sm rounded-3xl px-5 py-4 flex items-center justify-between">
+                <div>
+                    <div class="text-xs text-slate-500">累計可動用 / 已超支</div>
+                    <div id="home-surplus-value" class="text-3xl font-bold tabular-nums tracking-tighter"></div>
+                </div>
+                <div class="text-right">
+                    <i class="fa-solid fa-piggy-bank text-3xl text-emerald-400/70"></i>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Navigation -->
+        <div class="grid grid-cols-2 gap-3">
+            <!-- Daily Record -->
+            <button onclick="showSection('daily')"
+                    class="group bg-white hover:bg-emerald-50 border border-slate-200 hover:border-emerald-200 transition-all rounded-3xl p-5 text-left shadow-sm active:scale-[0.985]">
+                <div class="flex items-center gap-x-4">
+                    <div class="w-12 h-12 bg-emerald-100 group-hover:bg-emerald-200 transition-colors rounded-2xl flex items-center justify-center flex-shrink-0">
+                        <i class="fa-solid fa-calendar-day text-emerald-600 text-2xl"></i>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <div class="font-bold text-xl text-slate-800">每日記錄</div>
+                        <div class="text-emerald-600 text-sm">車錢 + 飯錢 • 今日上限 $320</div>
+                    </div>
+                    <i class="fa-solid fa-chevron-right text-emerald-400 group-hover:text-emerald-500 transition-colors"></i>
+                </div>
+            </button>
+
+            <!-- Monthly Record -->
+            <button onclick="showSection('monthly')"
+                    class="group bg-white hover:bg-emerald-50 border border-slate-200 hover:border-emerald-200 transition-all rounded-3xl p-5 text-left shadow-sm active:scale-[0.985]">
+                <div class="flex items-center gap-x-4">
+                    <div class="w-12 h-12 bg-emerald-100 group-hover:bg-emerald-200 transition-colors rounded-2xl flex items-center justify-center flex-shrink-0">
+                        <i class="fa-solid fa-calendar-alt text-emerald-600 text-2xl"></i>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <div class="font-bold text-xl text-slate-800">每月記錄</div>
+                        <div class="text-emerald-600 text-sm">9 個類別 • 每月預算</div>
+                    </div>
+                    <i class="fa-solid fa-chevron-right text-emerald-400 group-hover:text-emerald-500 transition-colors"></i>
+                </div>
+            </button>
+
+            <!-- History -->
+            <button onclick="showSection('history')"
+                    class="group bg-white hover:bg-emerald-50 border border-slate-200 hover:border-emerald-200 transition-all rounded-3xl p-5 text-left shadow-sm active:scale-[0.985]">
+                <div class="flex items-center gap-x-4">
+                    <div class="w-12 h-12 bg-emerald-100 group-hover:bg-emerald-200 transition-colors rounded-2xl flex items-center justify-center flex-shrink-0">
+                        <i class="fa-solid fa-history text-emerald-600 text-2xl"></i>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <div class="font-bold text-xl text-slate-800">過往歷史</div>
+                        <div class="text-emerald-600 text-sm">按月查看開支明細</div>
+                    </div>
+                    <i class="fa-solid fa-chevron-right text-emerald-400 group-hover:text-emerald-500 transition-colors"></i>
+                </div>
+            </button>
+
+            <!-- Settings -->
+            <button onclick="showSection('settings')"
+                    class="group bg-white hover:bg-emerald-50 border border-slate-200 hover:border-emerald-200 transition-all rounded-3xl p-5 text-left shadow-sm active:scale-[0.985]">
+                <div class="flex items-center gap-x-4">
+                    <div class="w-12 h-12 bg-emerald-100 group-hover:bg-emerald-200 transition-colors rounded-2xl flex items-center justify-center flex-shrink-0">
+                        <i class="fa-solid fa-cog text-emerald-600 text-2xl"></i>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <div class="font-bold text-xl text-slate-800">設定</div>
+                        <div class="text-emerald-600 text-sm">調整預算上限</div>
+                    </div>
+                    <i class="fa-solid fa-chevron-right text-emerald-400 group-hover:text-emerald-500 transition-colors"></i>
+                </div>
+            </button>
+        </div>
+
+        <div class="mt-8 text-center">
+            <p class="text-[10px] text-slate-400">資料只儲存在此裝置的瀏覽器 • 不會上傳</p>
+        </div>
+    </div>
+
+    <!-- DAILY RECORD PAGE -->
+    <div id="daily" class="section max-w-4xl mx-auto px-4 py-6">
+        <div class="flex items-center justify-between mb-5">
+            <button onclick="showSection('home')" 
+                    class="flex items-center gap-x-2 text-emerald-600 hover:text-emerald-700 transition-colors px-3 py-2 -ml-3 rounded-2xl hover:bg-emerald-50">
+                <i class="fa-solid fa-arrow-left"></i>
+                <span class="font-medium">返回</span>
+            </button>
+            <div class="text-center">
+                <div class="text-xs text-emerald-600 font-medium tracking-wider">今日記錄</div>
+                <div id="daily-date" class="font-bold text-xl text-slate-800"></div>
+            </div>
+            <div class="w-16"></div>
+        </div>
+
+        <!-- Add buttons -->
+        <div class="grid grid-cols-2 gap-3 mb-6">
+            <button onclick="openExpenseModal('daily', 'transport', 'add')"
+                    class="bg-white border border-emerald-200 hover:border-emerald-300 active:bg-emerald-50 transition-all rounded-3xl p-5 flex flex-col items-center justify-center gap-y-2 shadow-sm">
+                <div class="w-12 h-12 bg-emerald-100 rounded-2xl flex items-center justify-center">
+                    <i class="fa-solid fa-car text-emerald-600 text-2xl"></i>
+                </div>
+                <div>
+                    <div class="font-bold text-lg text-slate-800">今日車錢</div>
+                    <div class="text-xs text-emerald-600">上限 $70</div>
+                </div>
+            </button>
+            
+            <button onclick="openExpenseModal('daily', 'food', 'add')"
+                    class="bg-white border border-emerald-200 hover:border-emerald-300 active:bg-emerald-50 transition-all rounded-3xl p-5 flex flex-col items-center justify-center gap-y-2 shadow-sm">
+                <div class="w-12 h-12 bg-emerald-100 rounded-2xl flex items-center justify-center">
+                    <i class="fa-solid fa-utensils text-emerald-600 text-2xl"></i>
+                </div>
+                <div>
+                    <div class="font-bold text-lg text-slate-800">今日飯錢</div>
+                    <div class="text-xs text-emerald-600">上限 $250</div>
+                </div>
+            </button>
+        </div>
+
+        <!-- Today's summary -->
+        <div class="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden">
+            <div class="px-5 pt-4 pb-2">
+                <div class="flex items-center justify-between mb-3">
+                    <div class="font-semibold text-slate-700">今日開支總結</div>
+                    <button onclick="resetToday()" 
+                            class="text-xs px-3 py-1 text-red-500 hover:bg-red-50 rounded-2xl flex items-center gap-x-1 transition-colors">
+                        <i class="fa-solid fa-undo text-xs"></i>
+                        <span>重置今日</span>
+                    </button>
+                </div>
                 
-                <label>每日飯錢預算</label>
-                <input type="number" id="daily-meal-budget" value="250">
+                <div class="space-y-4">
+                    <!-- Transport -->
+                    <div class="flex items-center justify-between category-row px-1 py-2 rounded-2xl cursor-pointer" 
+                         onclick="openExpenseModal('daily', 'transport', 'edit')">
+                        <div class="flex items-center gap-x-3">
+                            <i class="fa-solid fa-car text-emerald-500 w-5"></i>
+                            <span class="font-medium text-slate-700">車錢</span>
+                        </div>
+                        <div class="text-right">
+                            <div id="daily-transport-value" class="font-mono text-xl font-semibold tabular-nums hk-money"></div>
+                            <div class="text-[10px] text-emerald-600 -mt-0.5">/ $70</div>
+                        </div>
+                    </div>
+                    
+                    <!-- Food -->
+                    <div class="flex items-center justify-between category-row px-1 py-2 rounded-2xl cursor-pointer"
+                         onclick="openExpenseModal('daily', 'food', 'edit')">
+                        <div class="flex items-center gap-x-3">
+                            <i class="fa-solid fa-utensils text-emerald-500 w-5"></i>
+                            <span class="font-medium text-slate-700">飯錢</span>
+                        </div>
+                        <div class="text-right">
+                            <div id="daily-food-value" class="font-mono text-xl font-semibold tabular-nums hk-money"></div>
+                            <div class="text-[10px] text-emerald-600 -mt-0.5">/ $250</div>
+                        </div>
+                    </div>
+                    
+                    <div class="h-px bg-slate-100 my-1"></div>
+                    
+                    <!-- Total -->
+                    <div class="flex items-center justify-between px-1 py-1">
+                        <div>
+                            <span class="font-semibold text-slate-700">今日總計</span>
+                            <span class="text-xs text-slate-400 ml-1.5">(上限 $320)</span>
+                        </div>
+                        <div class="text-right">
+                            <div id="daily-total-value" class="font-mono text-2xl font-bold tabular-nums hk-money"></div>
+                            <div id="daily-remaining" class="text-sm font-medium"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="mt-4 text-center text-xs text-slate-400">
+            點擊金額可直接編輯總數
+        </div>
+    </div>
+
+    <!-- MONTHLY RECORD PAGE -->
+    <div id="monthly" class="section max-w-4xl mx-auto px-4 py-6">
+        <div class="flex items-center justify-between mb-5">
+            <button onclick="showSection('home')" 
+                    class="flex items-center gap-x-2 text-emerald-600 hover:text-emerald-700 transition-colors px-3 py-2 -ml-3 rounded-2xl hover:bg-emerald-50">
+                <i class="fa-solid fa-arrow-left"></i>
+                <span class="font-medium">返回</span>
+            </button>
+            <div class="text-center">
+                <div class="text-xs text-emerald-600 font-medium tracking-wider">每月記錄</div>
+                <div id="monthly-month" class="font-bold text-xl text-slate-800"></div>
+            </div>
+            <div class="w-16"></div>
+        </div>
+
+        <!-- Monthly surplus banner -->
+        <div id="monthly-surplus-banner" 
+             class="mb-5 rounded-3xl px-5 py-4 flex items-center justify-between border">
+            <div>
+                <div class="text-xs font-medium tracking-wider">本月每日預算淨返</div>
+                <div id="monthly-surplus-value" class="text-3xl font-bold tabular-nums tracking-tighter"></div>
+            </div>
+            <div id="monthly-surplus-label" class="text-right text-sm font-medium px-3 py-1 rounded-2xl"></div>
+        </div>
+
+        <!-- Monthly categories -->
+        <div class="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden mb-4">
+            <div class="px-5 pt-4 pb-2">
+                <div class="font-semibold text-slate-700 mb-3 px-1">每月類別開支</div>
                 
-                <button onclick="saveSettings()">儲存設定</button>
-                <button onclick="resetAll()" style="background:#c62828;">重置所有數據</button>
+                <div id="monthly-categories-list" class="divide-y divide-slate-100">
+                    <!-- Populated by JS -->
+                </div>
+            </div>
+        </div>
+        
+        <div class="text-center text-xs text-slate-400">
+            點擊「新增」或金額可記錄 / 編輯
+        </div>
+    </div>
+
+    <!-- HISTORY PAGE -->
+    <div id="history" class="section max-w-4xl mx-auto px-4 py-6">
+        <div class="flex items-center justify-between mb-5">
+            <button onclick="showSection('home')" 
+                    class="flex items-center gap-x-2 text-emerald-600 hover:text-emerald-700 transition-colors px-3 py-2 -ml-3 rounded-2xl hover:bg-emerald-50">
+                <i class="fa-solid fa-arrow-left"></i>
+                <span class="font-medium">返回</span>
+            </button>
+            <div class="font-bold text-xl text-slate-800">過往歷史</div>
+            <div class="w-16"></div>
+        </div>
+
+        <div class="bg-white rounded-3xl p-5 shadow-sm border border-slate-100 mb-5">
+            <label class="block text-xs font-medium text-slate-500 mb-2 tracking-wider">選擇年月</label>
+            <div class="flex gap-x-3">
+                <input type="month" id="history-month-picker" 
+                       class="flex-1 border border-slate-200 focus:border-emerald-400 outline-none rounded-2xl px-4 py-3 text-lg font-medium">
+                <button onclick="loadHistory()" 
+                        class="px-6 bg-emerald-500 hover:bg-emerald-600 active:bg-emerald-700 transition-colors text-white font-semibold rounded-2xl flex items-center justify-center gap-x-2">
+                    <i class="fa-solid fa-sync-alt"></i>
+                    <span>載入</span>
+                </button>
+            </div>
+        </div>
+
+        <div id="history-content" class="hidden">
+            <!-- Dynamic content -->
+            <div class="bg-white rounded-3xl shadow-sm border border-slate-100 p-5 mb-4">
+                <div class="flex justify-between items-end mb-4">
+                    <div>
+                        <div class="text-xs text-emerald-600 font-medium tracking-wider">該月每日預算淨返</div>
+                        <div id="history-surplus" class="text-4xl font-bold tabular-nums tracking-tighter"></div>
+                    </div>
+                    <div id="history-days-logged" class="text-right text-xs text-slate-500"></div>
+                </div>
+            </div>
+
+            <!-- Categories summary -->
+            <div class="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden mb-4">
+                <div class="px-5 pt-4 pb-1">
+                    <div class="font-semibold text-slate-700 mb-3">每月類別開支</div>
+                    <div id="history-categories" class="space-y-3 text-sm">
+                        <!-- JS populated -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Daily breakdown -->
+            <div class="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden">
+                <div class="px-5 pt-4 pb-2">
+                    <div class="font-semibold text-slate-700 mb-3">每日記錄明細</div>
+                    <div id="history-daily-list" class="text-sm divide-y divide-slate-100 max-h-[420px] overflow-auto">
+                        <!-- JS populated rows -->
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div id="history-empty" class="hidden text-center py-12 text-slate-400">
+            <i class="fa-regular fa-folder-open text-4xl mb-3"></i>
+            <p>該月份暫無記錄</p>
+        </div>
+    </div>
+
+    <!-- SETTINGS PAGE -->
+    <div id="settings" class="section max-w-4xl mx-auto px-4 py-6">
+        <div class="flex items-center justify-between mb-5">
+            <button onclick="showSection('home')" 
+                    class="flex items-center gap-x-2 text-emerald-600 hover:text-emerald-700 transition-colors px-3 py-2 -ml-3 rounded-2xl hover:bg-emerald-50">
+                <i class="fa-solid fa-arrow-left"></i>
+                <span class="font-medium">返回</span>
+            </button>
+            <div class="font-bold text-xl text-slate-800">設定</div>
+            <div class="w-16"></div>
+        </div>
+
+        <div class="bg-white rounded-3xl shadow-sm border border-slate-100 p-6 mb-4">
+            <h3 class="font-semibold text-lg mb-4 flex items-center gap-x-2">
+                <i class="fa-solid fa-calendar-day text-emerald-500"></i>
+                <span>每日預算上限</span>
+            </h3>
+            
+            <div class="grid grid-cols-2 gap-x-4 gap-y-5">
+                <div>
+                    <label class="text-xs font-medium text-slate-500 block mb-1.5">車錢</label>
+                    <div class="flex items-center border border-slate-200 focus-within:border-emerald-400 rounded-2xl px-4">
+                        <span class="text-emerald-500">$</span>
+                        <input type="number" id="set-daily-transport" step="1" min="0"
+                               class="flex-1 outline-none py-3 px-2 text-xl font-semibold tabular-nums">
+                    </div>
+                </div>
+                <div>
+                    <label class="text-xs font-medium text-slate-500 block mb-1.5">飯錢</label>
+                    <div class="flex items-center border border-slate-200 focus-within:border-emerald-400 rounded-2xl px-4">
+                        <span class="text-emerald-500">$</span>
+                        <input type="number" id="set-daily-food" step="1" min="0"
+                               class="flex-1 outline-none py-3 px-2 text-xl font-semibold tabular-nums">
+                    </div>
+                </div>
+            </div>
+            <div class="mt-2 text-xs text-emerald-600 px-1">合計每日上限：<span id="set-daily-total" class="font-mono font-semibold"></span></div>
+        </div>
+
+        <div class="bg-white rounded-3xl shadow-sm border border-slate-100 p-6 mb-5">
+            <h3 class="font-semibold text-lg mb-4 flex items-center gap-x-2">
+                <i class="fa-solid fa-calendar-alt text-emerald-500"></i>
+                <span>每月類別預算上限</span>
+            </h3>
+            
+            <div id="settings-monthly-list" class="grid grid-cols-1 gap-y-4">
+                <!-- Populated dynamically -->
+            </div>
+        </div>
+
+        <div class="flex gap-x-3">
+            <button onclick="saveSettings()" 
+                    class="flex-1 bg-emerald-500 hover:bg-emerald-600 active:bg-emerald-700 transition-all text-white font-bold py-4 rounded-3xl shadow-lg shadow-emerald-500/30 flex items-center justify-center gap-x-2">
+                <i class="fa-solid fa-save"></i>
+                <span>儲存設定</span>
+            </button>
+            
+            <button onclick="resetToDefaults()" 
+                    class="px-6 border border-slate-300 hover:bg-slate-50 active:bg-slate-100 transition-all text-slate-600 font-medium py-4 rounded-3xl flex items-center justify-center gap-x-2">
+                <i class="fa-solid fa-undo"></i>
+                <span>重置為初始值</span>
+            </button>
+        </div>
+        
+        <div class="mt-6 text-center">
+            <button onclick="exportData()" 
+                    class="text-xs text-emerald-600 hover:text-emerald-700 flex items-center gap-x-1.5 mx-auto">
+                <i class="fa-solid fa-download"></i>
+                <span>匯出所有資料 (JSON)</span>
+            </button>
+            <button onclick="importDataPrompt()" 
+                    class="text-xs text-emerald-600 hover:text-emerald-700 flex items-center gap-x-1.5 mx-auto mt-1">
+                <i class="fa-solid fa-upload"></i>
+                <span>匯入資料</span>
+            </button>
+        </div>
+        
+        <div class="mt-8 text-[10px] text-center text-slate-400 leading-snug">
+            設定變更會即時影響「今日」及「本月」計算。<br>
+            過往歷史會使用目前設定顯示。
+        </div>
+    </div>
+
+    <!-- EXPENSE MODAL -->
+    <div id="expense-modal" onclick="if (event.target.id === 'expense-modal') closeExpenseModal()" 
+         class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-end md:items-center justify-center">
+        <div onclick="event.stopImmediatePropagation()" 
+             class="bg-white w-full md:w-[380px] md:rounded-3xl md:m-4 rounded-t-3xl p-6 modal">
+            
+            <div class="flex justify-between items-center mb-5">
+                <div>
+                    <div id="modal-title" class="font-bold text-2xl text-slate-800"></div>
+                    <div id="modal-subtitle" class="text-xs text-emerald-600 font-medium"></div>
+                </div>
+                <button onclick="closeExpenseModal()" class="text-slate-400 hover:text-slate-600 w-9 h-9 flex items-center justify-center">
+                    <i class="fa-solid fa-times text-xl"></i>
+                </button>
+            </div>
+            
+            <!-- Quick add buttons -->
+            <div id="quick-add-buttons" class="flex flex-wrap gap-2 mb-4">
+                <!-- Populated by JS depending on category -->
+            </div>
+            
+            <div class="mb-2">
+                <label class="text-xs font-medium text-slate-500 px-1">金額</label>
+                <div class="flex items-center border-2 border-emerald-400 focus-within:border-emerald-500 rounded-3xl px-5 transition-colors">
+                    <span class="text-emerald-500 text-2xl font-light">$</span>
+                    <input type="number" id="modal-amount" step="1" min="0" placeholder="0"
+                           class="flex-1 outline-none py-4 px-3 text-4xl font-semibold tabular-nums tracking-tighter">
+                </div>
+            </div>
+            
+            <div class="flex gap-x-3 mt-6">
+                <button onclick="closeExpenseModal()" 
+                        class="flex-1 py-3.5 border border-slate-300 text-slate-600 font-semibold rounded-3xl active:bg-slate-50 transition-colors">
+                    取消
+                </button>
+                <button onclick="confirmExpenseModal()" 
+                        class="flex-1 py-3.5 bg-emerald-500 hover:bg-emerald-600 active:bg-emerald-700 transition-all text-white font-bold rounded-3xl shadow-lg shadow-emerald-500/30">
+                    <span id="modal-confirm-text">確認新增</span>
+                </button>
+            </div>
+            
+            <div class="text-center mt-3">
+                <div id="modal-hint" class="text-[10px] text-slate-400"></div>
             </div>
         </div>
     </div>
 
     <script>
-        let settings = { dailyCar: 70, dailyMealBudget: 250 };
-        let monthlyBudgets = { chii:700, pretty:350, larp_cot:1600, more_food:1500, idol:2000, uber:600, utilities:500, sfaa:1680 };
-        let monthlySpent = {};
-        let dailyRecords = {};   // { "2025-06-05": { cars: [50,20], meals: [180,100] } }
+        // ==================== DATA & CONFIG ====================
+        let data = {
+            daily: {},
+            monthly: {},
+            settings: {}
+        };
 
-        function init() {
-            loadData();
-            renderCategorySelect();
-            const today = new Date().toISOString().split('T')[0];
-            document.getElementById('record-date').value = today;
-            switchTab(0);
-            updateReviews();
+        const DEFAULTS = {
+            daily: {
+                transport: 70,
+                food: 250
+            },
+            monthly: {
+                chiikawa: 500,
+                pretty: 350,
+                larp: 1500,
+                food: 1000,
+                idol: 1800,
+                uber: 600,
+                utilities: 500,
+                sfaa: 1680,
+                subscription: 800
+            }
+        };
+
+        const DAILY_CATS = [
+            { key: 'transport', name: '車錢', icon: 'fa-car', color: 'emerald' },
+            { key: 'food', name: '飯錢', icon: 'fa-utensils', color: 'emerald' }
+        ];
+
+        const MONTHLY_CATS = [
+            { key: 'chiikawa', name: 'Chiikawa', icon: 'fa-paw' },
+            { key: 'pretty', name: 'Pretty', icon: 'fa-magic' },
+            { key: 'larp', name: 'LARP / COT / Play', icon: 'fa-theater-masks' },
+            { key: 'food', name: 'Food (額外)', icon: 'fa-utensils' },
+            { key: 'idol', name: 'Idol 應援', icon: 'fa-microphone-alt' },
+            { key: 'uber', name: '更多 Uber', icon: 'fa-taxi' },
+            { key: 'utilities', name: '水電', icon: 'fa-lightbulb' },
+            { key: 'sfaa', name: 'SFAA', icon: 'fa-file-invoice-dollar' },
+            { key: 'subscription', name: '訂閱', icon: 'fa-tv' }
+        ];
+
+        let currentModalContext = null; // { type: 'daily'|'monthly', key: string, mode: 'add'|'edit' }
+
+        // ==================== UTILS ====================
+        function getTodayKey() {
+            const d = new Date();
+            return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+        }
+
+        function getCurrentMonthKey() {
+            const d = new Date();
+            return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+        }
+
+        function getDailyBudget() {
+            const s = data.settings.daily || DEFAULTS.daily;
+            return (s.transport || 0) + (s.food || 0);
+        }
+
+        function getDailyLimit(key) {
+            return (data.settings.daily || DEFAULTS.daily)[key] || 0;
+        }
+
+        function getMonthlyLimit(key) {
+            return (data.settings.monthly || DEFAULTS.monthly)[key] || 0;
+        }
+
+        function formatMoney(n) {
+            if (n === undefined || n === null) n = 0;
+            const abs = Math.abs(n);
+            const formatted = abs.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+            return n < 0 ? '-$' + formatted : '$' + formatted;
         }
 
         function loadData() {
-            if (localStorage.getItem('moneySettings')) settings = JSON.parse(localStorage.getItem('moneySettings'));
-            if (localStorage.getItem('monthlyBudgets')) monthlyBudgets = JSON.parse(localStorage.getItem('monthlyBudgets'));
-            if (localStorage.getItem('monthlySpent')) monthlySpent = JSON.parse(localStorage.getItem('monthlySpent'));
-            if (localStorage.getItem('dailyRecords')) dailyRecords = JSON.parse(localStorage.getItem('dailyRecords'));
+            const saved = localStorage.getItem('expenseData_v2');
+            if (saved) {
+                data = JSON.parse(saved);
+            }
+            
+            // Init settings if missing
+            if (!data.settings || Object.keys(data.settings).length === 0) {
+                data.settings = JSON.parse(JSON.stringify(DEFAULTS));
+            }
+            if (!data.daily) data.daily = {};
+            if (!data.monthly) data.monthly = {};
+            
+            saveData();
         }
 
         function saveData() {
-            localStorage.setItem('moneySettings', JSON.stringify(settings));
-            localStorage.setItem('monthlyBudgets', JSON.stringify(monthlyBudgets));
-            localStorage.setItem('monthlySpent', JSON.stringify(monthlySpent));
-            localStorage.setItem('dailyRecords', JSON.stringify(dailyRecords));
+            localStorage.setItem('expenseData_v2', JSON.stringify(data));
         }
 
-        function switchTab(n) {
-            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-            document.querySelectorAll('.nav button').forEach(b => b.classList.remove('active'));
-            document.getElementById(`tab${n}`).classList.add('active');
-            document.querySelectorAll('.nav button')[n].classList.add('active');
-            if (n === 2 || n === 3) updateReviews();
-        }
-
-        function addMeal() {
-            const date = document.getElementById('record-date').value;
-            const amount = parseFloat(prompt("輸入飯錢金額："));
-            if (!amount || amount <= 0) return;
+        function updateDateDisplay() {
+            const now = new Date();
+            const dateStr = now.toLocaleDateString('zh-HK', { 
+                year: 'numeric', month: 'long', day: 'numeric', weekday: 'short' 
+            });
+            document.getElementById('date-text').textContent = dateStr;
             
-            if (!dailyRecords[date]) dailyRecords[date] = { cars: [], meals: [] };
-            dailyRecords[date].meals.push(amount);
-            saveData();
-            updateReviews();
-            alert('✅ 飯錢已記錄');
+            // Home today
+            document.getElementById('home-today-date').textContent = 
+                now.toLocaleDateString('zh-HK', { month: 'long', day: 'numeric' });
         }
 
-        function addCar() {
-            const date = document.getElementById('record-date').value;
-            const amount = parseFloat(prompt("輸入車費金額："));
-            if (!amount || amount <= 0) return;
+        // ==================== HOME PAGE ====================
+        function updateHome() {
+            const todayKey = getTodayKey();
+            const todayData = data.daily[todayKey] || { transport: 0, food: 0 };
             
-            if (!dailyRecords[date]) dailyRecords[date] = { cars: [], meals: [] };
-            dailyRecords[date].cars.push(amount);
-            saveData();
-            updateReviews();
-            alert('✅ 車費已記錄');
+            const tSpent = todayData.transport || 0;
+            const fSpent = todayData.food || 0;
+            const totalSpent = tSpent + fSpent;
+            const dailyBudget = getDailyBudget();
+            const remaining = dailyBudget - totalSpent;
+            
+            // Today remaining big number
+            const remEl = document.getElementById('home-today-remaining');
+            remEl.textContent = formatMoney(remaining);
+            remEl.className = `text-4xl font-bold tabular-nums tracking-tighter ${remaining < 0 ? 'text-red-500' : 'text-emerald-600'}`;
+            
+            // Transport
+            const tLimit = getDailyLimit('transport');
+            document.getElementById('home-transport').innerHTML = 
+                `<span class="${tSpent > tLimit ? 'text-red-500 font-bold' : ''}">${formatMoney(tSpent)}</span> / ${formatMoney(tLimit)}`;
+            
+            const tPct = tLimit > 0 ? Math.min((tSpent / tLimit) * 100, 100) : 0;
+            const tBar = document.getElementById('home-transport-bar');
+            tBar.style.width = tPct + '%';
+            tBar.style.background = tSpent > tLimit ? 
+                'linear-gradient(to right, #ef4444, #f87171)' : 
+                'linear-gradient(to right, #10b981, #34d399)';
+            
+            // Food
+            const fLimit = getDailyLimit('food');
+            document.getElementById('home-food').innerHTML = 
+                `<span class="${fSpent > fLimit ? 'text-red-500 font-bold' : ''}">${formatMoney(fSpent)}</span> / ${formatMoney(fLimit)}`;
+            
+            const fPct = fLimit > 0 ? Math.min((fSpent / fLimit) * 100, 100) : 0;
+            const fBar = document.getElementById('home-food-bar');
+            fBar.style.width = fPct + '%';
+            fBar.style.background = fSpent > fLimit ? 
+                'linear-gradient(to right, #ef4444, #f87171)' : 
+                'linear-gradient(to right, #10b981, #34d399)';
+            
+            // Monthly surplus
+            const monthKey = getCurrentMonthKey();
+            const surplus = calculateMonthDailyVariance(monthKey);
+            const surplusEl = document.getElementById('home-surplus-value');
+            surplusEl.textContent = formatMoney(surplus);
+            surplusEl.className = `text-3xl font-bold tabular-nums tracking-tighter ${surplus < 0 ? 'text-red-500' : 'text-emerald-600'}`;
         }
 
-        function renderCategorySelect() {
-            const select = document.getElementById('category-select');
-            select.innerHTML = '';
-            const names = { chii:"Chii", pretty:"Pretty", larp_cot:"Larp/Cot", more_food:"額外食物", idol:"Idol", uber:"Uber", utilities:"水電", sfaa:"SFAA" };
-            Object.keys(monthlyBudgets).forEach(k => {
-                const opt = document.createElement('option');
-                opt.value = k;
-                opt.textContent = names[k] || k;
-                select.appendChild(opt);
+        // ==================== DAILY PAGE ====================
+        function updateDailyPage() {
+            const todayKey = getTodayKey();
+            document.getElementById('daily-date').textContent = 
+                new Date().toLocaleDateString('zh-HK', { month: 'long', day: 'numeric', weekday: 'long' });
+            
+            const todayData = data.daily[todayKey] || { transport: 0, food: 0 };
+            
+            const tLimit = getDailyLimit('transport');
+            const fLimit = getDailyLimit('food');
+            const dailyBudget = tLimit + fLimit;
+            
+            const tSpent = todayData.transport || 0;
+            const fSpent = todayData.food || 0;
+            const total = tSpent + fSpent;
+            const remaining = dailyBudget - total;
+            
+            // Transport
+            const tVal = document.getElementById('daily-transport-value');
+            tVal.textContent = formatMoney(tSpent);
+            tVal.className = `font-mono text-xl font-semibold tabular-nums hk-money ${tSpent > tLimit ? 'over-budget' : ''}`;
+            
+            // Food
+            const fVal = document.getElementById('daily-food-value');
+            fVal.textContent = formatMoney(fSpent);
+            fVal.className = `font-mono text-xl font-semibold tabular-nums hk-money ${fSpent > fLimit ? 'over-budget' : ''}`;
+            
+            // Total
+            document.getElementById('daily-total-value').textContent = formatMoney(total);
+            document.getElementById('daily-total-value').className = 
+                `font-mono text-2xl font-bold tabular-nums hk-money ${total > dailyBudget ? 'over-budget' : 'text-slate-800'}`;
+            
+            const remEl = document.getElementById('daily-remaining');
+            remEl.textContent = remaining >= 0 ? `剩餘 ${formatMoney(remaining)}` : `超支 ${formatMoney(Math.abs(remaining))}`;
+            remEl.className = `text-sm font-medium ${remaining < 0 ? 'text-red-500' : 'text-emerald-600'}`;
+        }
+
+        function resetToday() {
+            if (!confirm('確定要重置今日所有記錄嗎？')) return;
+            const todayKey = getTodayKey();
+            delete data.daily[todayKey];
+            saveData();
+            updateDailyPage();
+            updateHome();
+        }
+
+        // ==================== MONTHLY PAGE ====================
+        function updateMonthlyPage() {
+            const monthKey = getCurrentMonthKey();
+            document.getElementById('monthly-month').textContent = 
+                new Date().toLocaleDateString('zh-HK', { year: 'numeric', month: 'long' });
+            
+            // Surplus
+            const surplus = calculateMonthDailyVariance(monthKey);
+            const banner = document.getElementById('monthly-surplus-banner');
+            const valEl = document.getElementById('monthly-surplus-value');
+            const labelEl = document.getElementById('monthly-surplus-label');
+            
+            valEl.textContent = formatMoney(surplus);
+            
+            if (surplus >= 0) {
+                banner.style.borderColor = '#a7f3d0';
+                banner.style.background = '#ecfdf5';
+                valEl.style.color = '#059669';
+                labelEl.innerHTML = `<span class="px-3 py-0.5 bg-emerald-100 text-emerald-700 rounded-2xl text-xs font-medium">可動用</span>`;
+            } else {
+                banner.style.borderColor = '#fecaca';
+                banner.style.background = '#fef2f2';
+                valEl.style.color = '#dc2626';
+                labelEl.innerHTML = `<span class="px-3 py-0.5 bg-red-100 text-red-700 rounded-2xl text-xs font-medium">已超支</span>`;
+            }
+            
+            // Categories list
+            const container = document.getElementById('monthly-categories-list');
+            container.innerHTML = '';
+            
+            const monthData = data.monthly[monthKey] || {};
+            
+            MONTHLY_CATS.forEach(cat => {
+                const spent = monthData[cat.key] || 0;
+                const limit = getMonthlyLimit(cat.key);
+                const remaining = limit - spent;
+                const isOver = spent > limit;
+                
+                const row = document.createElement('div');
+                row.className = `flex items-center justify-between py-3.5 px-2 category-row rounded-2xl cursor-pointer ${isOver ? 'bg-red-50/50' : ''}`;
+                row.innerHTML = `
+                    <div class="flex items-center gap-x-3">
+                        <i class="fa-solid ${cat.icon} text-emerald-500 w-5"></i>
+                        <span class="font-medium text-slate-700">${cat.name}</span>
+                    </div>
+                    <div class="flex items-center gap-x-4">
+                        <div class="text-right">
+                            <div class="font-mono text-lg font-semibold tabular-nums hk-money ${isOver ? 'over-budget' : ''}">
+                                ${formatMoney(spent)}
+                            </div>
+                            <div class="text-[10px] text-emerald-600 -mt-0.5">/ ${formatMoney(limit)}</div>
+                        </div>
+                        <button onclick="event.stopImmediatePropagation(); openExpenseModal('monthly', '${cat.key}', 'add')"
+                                class="px-4 py-1.5 text-xs font-bold bg-emerald-100 hover:bg-emerald-200 active:bg-emerald-300 text-emerald-700 rounded-2xl transition-colors">
+                            新增
+                        </button>
+                    </div>
+                `;
+                
+                // Click whole row to edit
+                row.onclick = () => openExpenseModal('monthly', cat.key, 'edit');
+                
+                container.appendChild(row);
             });
         }
 
-        function addMonthlyExpense() {
-            const cat = document.getElementById('category-select').value;
-            const amt = parseFloat(document.getElementById('monthly-amount').value);
-            if (!amt || amt <= 0) return alert('請輸入有效金額');
+        function calculateMonthDailyVariance(monthKey) {
+            let total = 0;
+            const prefix = monthKey + '-';
+            const dailyBudget = getDailyBudget();
             
-            if (!monthlySpent[cat]) monthlySpent[cat] = 0;
-            monthlySpent[cat] += amt;
+            Object.keys(data.daily).forEach(dateKey => {
+                if (dateKey.startsWith(prefix)) {
+                    const day = data.daily[dateKey] || {};
+                    const spent = (day.transport || 0) + (day.food || 0);
+                    total += (dailyBudget - spent);
+                }
+            });
+            return total;
+        }
+
+        // ==================== HISTORY ====================
+        function loadHistory() {
+            const picker = document.getElementById('history-month-picker');
+            if (!picker.value) {
+                picker.value = getCurrentMonthKey();
+            }
+            const monthKey = picker.value;
             
-            saveData();
-            updateReviews();
-            document.getElementById('monthly-amount').value = '';
-            alert('✅ 月度開支已記錄');
-        }
-
-        function updateReviews() {
-            const todayStr = new Date().toISOString().split('T')[0];
-            const todayR = dailyRecords[todayStr] || {cars:[], meals:[]};
-            const todayCar = todayR.cars.reduce((a,b)=>a+b,0);
-            const todayMeal = todayR.meals.reduce((a,b)=>a+b,0);
-            const dailyBudget = settings.dailyCar + settings.dailyMealBudget;
-            const todayUsed = todayCar + todayMeal;
-            const todaySave = dailyBudget - todayUsed;
-
-            // 每日review
-            document.getElementById('today-savings').textContent = `$${Math.round(todaySave)}`;
-            document.getElementById('today-savings').className = `amount ${todaySave >= 0 ? 'positive' : 'negative'}`;
-
-            let detailHTML = `<strong>車費總計：$${todayCar}</strong><br>`;
-            if (todayR.cars && todayR.cars.length) detailHTML += `(${todayR.cars.join(' + ')})<br>`;
-            detailHTML += `<strong>飯錢總計：$${todayMeal}</strong>`;
-            if (todayR.meals && todayR.meals.length) detailHTML += `<br>(${todayR.meals.join(' + ')})`;
-            document.getElementById('today-detail').innerHTML = detailHTML;
-
-            // 今月review
-            document.getElementById('today-savings-month').textContent = `$${Math.round(todaySave)}`;
-            document.getElementById('today-savings-month').className = `amount ${todaySave >= 0 ? 'positive' : 'negative'}`;
-
-            let totalSave = 0;
-            Object.keys(dailyRecords).forEach(date => {
-                const r = dailyRecords[date];
-                const car = (r.cars || []).reduce((a,b)=>a+b,0);
-                const meal = (r.meals || []).reduce((a,b)=>a+b,0);
-                const used = car + meal;
-                totalSave += (dailyBudget - used);
+            const content = document.getElementById('history-content');
+            const empty = document.getElementById('history-empty');
+            
+            // Check if has any data
+            const hasDaily = Object.keys(data.daily).some(k => k.startsWith(monthKey));
+            const hasMonthly = !!data.monthly[monthKey];
+            
+            if (!hasDaily && !hasMonthly) {
+                content.classList.add('hidden');
+                empty.classList.remove('hidden');
+                return;
+            }
+            
+            content.classList.remove('hidden');
+            empty.classList.add('hidden');
+            
+            // Surplus
+            const surplus = calculateMonthDailyVariance(monthKey);
+            const surplusEl = document.getElementById('history-surplus');
+            surplusEl.textContent = formatMoney(surplus);
+            surplusEl.style.color = surplus < 0 ? '#dc2626' : '#059669';
+            
+            // Days logged
+            let daysCount = 0;
+            Object.keys(data.daily).forEach(k => { if (k.startsWith(monthKey)) daysCount++; });
+            document.getElementById('history-days-logged').innerHTML = 
+                `${daysCount} 日有記錄<br><span class="text-emerald-600">每日上限 $${getDailyBudget()}</span>`;
+            
+            // Categories
+            const catContainer = document.getElementById('history-categories');
+            catContainer.innerHTML = '';
+            
+            const monthData = data.monthly[monthKey] || {};
+            
+            MONTHLY_CATS.forEach(cat => {
+                const spent = monthData[cat.key] || 0;
+                const limit = getMonthlyLimit(cat.key);
+                const pct = limit > 0 ? Math.min(Math.round((spent / limit) * 100), 100) : 0;
+                const isOver = spent > limit;
+                
+                const div = document.createElement('div');
+                div.className = `flex items-center justify-between text-sm py-1 ${isOver ? 'text-red-600' : ''}`;
+                div.innerHTML = `
+                    <div class="flex items-center gap-x-2 w-2/5">
+                        <i class="fa-solid ${cat.icon} text-emerald-400 w-4"></i>
+                        <span class="font-medium truncate">${cat.name}</span>
+                    </div>
+                    <div class="flex-1 mx-3">
+                        <div class="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                            <div class="h-1.5 rounded-full transition-all ${isOver ? 'bg-red-400' : 'bg-emerald-400'}" 
+                                 style="width: ${pct}%"></div>
+                        </div>
+                    </div>
+                    <div class="font-mono text-right w-2/5 tabular-nums">
+                        <span class="font-semibold">${formatMoney(spent)}</span>
+                        <span class="text-xs text-slate-400">/ ${formatMoney(limit)}</span>
+                    </div>
+                `;
+                catContainer.appendChild(div);
             });
-
-            document.getElementById('month-total-savings').textContent = `$${Math.round(totalSave)}`;
-            document.getElementById('month-total-savings').className = `amount ${totalSave >= 0 ? 'positive' : 'negative'}`;
-
-            // 月度項目
-            let mhtml = '';
-            Object.keys(monthlyBudgets).forEach(k => {
-                const name = k === 'utilities' ? '水電' : (k === 'chii' ? 'Chii' : k);
-                const remain = monthlyBudgets[k] - (monthlySpent[k]||0);
-                mhtml += `<div class="daily-item"><strong>${name}</strong>　剩餘 <span class="${remain>=0?'positive':'negative'}">$${remain}</span></div>`;
-            });
-            document.getElementById('monthly-review-list').innerHTML = mhtml || '<p>未有月度開支</p>';
-        }
-
-        function saveSettings() {
-            settings.dailyCar = parseFloat(document.getElementById('daily-car').value) || 70;
-            settings.dailyMealBudget = parseFloat(document.getElementById('daily-meal-budget').value) || 250;
-            saveData();
-            updateReviews();
-            alert('✅ 設定已儲存');
-        }
-
-        function resetAll() {
-            if (confirm('確定清除所有數據？')) {
-                localStorage.clear();
-                location.reload();
+            
+            // Daily list
+            const dailyContainer = document.getElementById('history-daily-list');
+            dailyContainer.innerHTML = '';
+            
+            const sortedDays = Object.keys(data.daily)
+                .filter(k => k.startsWith(monthKey))
+                .sort()
+                .reverse();
+            
+            if (sortedDays.length === 0) {
+                const p = document.createElement('p');
+                p.className = 'text-center py-4 text-xs text-slate-400';
+                p.textContent = '本月未有每日記錄';
+                dailyContainer.appendChild(p);
+            } else {
+                sortedDays.forEach(dateKey => {
+                    const day = data.daily[dateKey];
+                    const t = day.transport || 0;
+                    const f = day.food || 0;
+                    const spent = t + f;
+                    const variance = getDailyBudget() - spent;
+                    
+                    const row = document.createElement('div');
+                    row.className = 'flex items-center justify-between py-3 px-1 text-sm';
+                    row.innerHTML = `
+                        <div class="font-medium text-slate-600 w-1/4">${dateKey.slice(5)}</div>
+                        <div class="flex-1 grid grid-cols-3 text-xs text-center">
+                            <div>車 <span class="font-mono font-semibold">${formatMoney(t)}</span></div>
+                            <div>飯 <span class="font-mono font-semibold">${formatMoney(f)}</span></div>
+                            <div class="${variance < 0 ? 'text-red-500 font-bold' : 'text-emerald-600'}">
+                                ${variance >= 0 ? '+' : ''}${formatMoney(variance)}
+                            </div>
+                        </div>
+                    `;
+                    dailyContainer.appendChild(row);
+                });
             }
         }
 
+        // ==================== SETTINGS ====================
+        function updateSettingsPage() {
+            // Daily
+            const s = data.settings.daily || DEFAULTS.daily;
+            document.getElementById('set-daily-transport').value = s.transport || 70;
+            document.getElementById('set-daily-food').value = s.food || 250;
+            
+            // Update total display
+            function updateDailyTotal() {
+                const t = parseInt(document.getElementById('set-daily-transport').value) || 0;
+                const f = parseInt(document.getElementById('set-daily-food').value) || 0;
+                document.getElementById('set-daily-total').textContent = '$' + (t + f);
+            }
+            
+            document.getElementById('set-daily-transport').oninput = updateDailyTotal;
+            document.getElementById('set-daily-food').oninput = updateDailyTotal;
+            updateDailyTotal();
+            
+            // Monthly
+            const container = document.getElementById('settings-monthly-list');
+            container.innerHTML = '';
+            
+            const mSettings = data.settings.monthly || DEFAULTS.monthly;
+            
+            MONTHLY_CATS.forEach(cat => {
+                const val = mSettings[cat.key] || DEFAULTS.monthly[cat.key] || 0;
+                
+                const div = document.createElement('div');
+                div.className = 'flex items-center gap-x-3';
+                div.innerHTML = `
+                    <div class="w-5"><i class="fa-solid ${cat.icon} text-emerald-400"></i></div>
+                    <div class="flex-1 font-medium text-sm text-slate-600">${cat.name}</div>
+                    <div class="flex items-center border border-slate-200 focus-within:border-emerald-400 rounded-2xl px-3 w-28">
+                        <span class="text-emerald-400 text-sm">$</span>
+                        <input type="number" value="${val}" step="10" min="0" data-key="${cat.key}"
+                               class="flex-1 outline-none py-2 px-1.5 text-right font-mono font-semibold text-lg">
+                    </div>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        function saveSettings() {
+            // Daily
+            data.settings.daily = {
+                transport: parseInt(document.getElementById('set-daily-transport').value) || 0,
+                food: parseInt(document.getElementById('set-daily-food').value) || 0
+            };
+            
+            // Monthly
+            data.settings.monthly = {};
+            document.querySelectorAll('#settings-monthly-list input').forEach(inp => {
+                const key = inp.dataset.key;
+                data.settings.monthly[key] = parseInt(inp.value) || 0;
+            });
+            
+            saveData();
+            
+            // Refresh affected pages
+            updateHome();
+            updateDailyPage();
+            updateMonthlyPage();
+            
+            // Toast
+            showToast('設定已儲存！');
+        }
+
+        function resetToDefaults() {
+            if (!confirm('確定要重置所有預算為初始值嗎？\n（不會清除已記錄的開支）')) return;
+            
+            data.settings = JSON.parse(JSON.stringify(DEFAULTS));
+            saveData();
+            updateSettingsPage();
+            updateHome();
+            updateDailyPage();
+            updateMonthlyPage();
+            showToast('已重置為初始值');
+        }
+
+        function showToast(msg) {
+            const toast = document.createElement('div');
+            toast.className = `fixed bottom-6 left-1/2 -translate-x-1/2 bg-slate-800 text-white text-sm px-5 py-2.5 rounded-3xl shadow-xl flex items-center gap-x-2 z-[200]`;
+            toast.innerHTML = `<span>${msg}</span>`;
+            document.body.appendChild(toast);
+            setTimeout(() => {
+                toast.style.transition = 'all 0.2s';
+                toast.style.opacity = '0';
+                setTimeout(() => toast.remove(), 200);
+            }, 2200);
+        }
+
+        // ==================== MODAL ====================
+        function openExpenseModal(type, key, mode) {
+            currentModalContext = { type, key, mode };
+            
+            const modal = document.getElementById('expense-modal');
+            const titleEl = document.getElementById('modal-title');
+            const subEl = document.getElementById('modal-subtitle');
+            const amountInput = document.getElementById('modal-amount');
+            const confirmBtnText = document.getElementById('modal-confirm-text');
+            const quickContainer = document.getElementById('modal-hint');
+            const quickBtns = document.getElementById('quick-add-buttons');
+            
+            quickBtns.innerHTML = '';
+            quickContainer.textContent = '';
+            
+            let currentVal = 0;
+            let limit = 0;
+            let catName = '';
+            
+            if (type === 'daily') {
+                const todayKey = getTodayKey();
+                const dayData = data.daily[todayKey] || {};
+                currentVal = dayData[key] || 0;
+                limit = getDailyLimit(key);
+                catName = key === 'transport' ? '車錢' : '飯錢';
+                
+                titleEl.textContent = mode === 'add' ? `新增 ${catName}` : `編輯 ${catName} 總額`;
+                subEl.textContent = `今日上限 ${formatMoney(limit)}`;
+                
+                // Quick buttons for daily
+                const quickAmounts = key === 'transport' ? [10, 20, 30, 50] : [20, 50, 80, 100];
+                quickAmounts.forEach(q => {
+                    const btn = document.createElement('button');
+                    btn.className = `quick-btn px-4 py-1 text-sm font-medium border border-emerald-200 hover:bg-emerald-50 active:bg-emerald-100 rounded-2xl text-emerald-700`;
+                    btn.textContent = `+${q}`;
+                    btn.onclick = () => {
+                        amountInput.value = (parseFloat(amountInput.value) || 0) + q;
+                    };
+                    quickBtns.appendChild(btn);
+                });
+                
+            } else { // monthly
+                const monthKey = getCurrentMonthKey();
+                const mData = data.monthly[monthKey] || {};
+                currentVal = mData[key] || 0;
+                limit = getMonthlyLimit(key);
+                
+                const catInfo = MONTHLY_CATS.find(c => c.key === key);
+                catName = catInfo ? catInfo.name : key;
+                
+                titleEl.textContent = mode === 'add' ? `新增 ${catName}` : `編輯 ${catName} 總額`;
+                subEl.textContent = `本月上限 ${formatMoney(limit)}`;
+                
+                // Quick buttons for monthly (larger)
+                const quickAmounts = [50, 100, 200, 500];
+                quickAmounts.forEach(q => {
+                    const btn = document.createElement('button');
+                    btn.className = `quick-btn px-4 py-1 text-sm font-medium border border-emerald-200 hover:bg-emerald-50 active:bg-emerald-100 rounded-2xl text-emerald-700`;
+                    btn.textContent = `+${q}`;
+                    btn.onclick = () => {
+                        amountInput.value = (parseFloat(amountInput.value) || 0) + q;
+                    };
+                    quickBtns.appendChild(btn);
+                });
+            }
+            
+            // Set input value
+            if (mode === 'edit') {
+                amountInput.value = currentVal;
+                confirmBtnText.textContent = '確認修改';
+                quickContainer.textContent = '直接輸入新總額';
+            } else {
+                amountInput.value = '';
+                amountInput.placeholder = '輸入金額';
+                confirmBtnText.textContent = '確認新增';
+                quickContainer.textContent = '或使用快速按鈕';
+            }
+            
+            amountInput.focus();
+            amountInput.select();
+            
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function closeExpenseModal() {
+            const modal = document.getElementById('expense-modal');
+            modal.classList.remove('flex');
+            modal.classList.add('hidden');
+            currentModalContext = null;
+        }
+
+        function confirmExpenseModal() {
+            if (!currentModalContext) return;
+            
+            const { type, key, mode } = currentModalContext;
+            const amountInput = document.getElementById('modal-amount');
+            let amount = parseFloat(amountInput.value);
+            
+            if (isNaN(amount) || amount < 0) {
+                amount = 0;
+            }
+            
+            const todayKey = getTodayKey();
+            const monthKey = getCurrentMonthKey();
+            
+            if (type === 'daily') {
+                if (!data.daily[todayKey]) data.daily[todayKey] = { transport: 0, food: 0 };
+                
+                if (mode === 'add') {
+                    data.daily[todayKey][key] = (data.daily[todayKey][key] || 0) + amount;
+                } else { // edit = set
+                    data.daily[todayKey][key] = amount;
+                }
+                
+                // Clean zero
+                if (data.daily[todayKey][key] === 0) {
+                    // keep for history or delete? keep 0 ok, or delete key if both 0
+                }
+                
+            } else { // monthly
+                if (!data.monthly[monthKey]) data.monthly[monthKey] = {};
+                
+                if (mode === 'add') {
+                    data.monthly[monthKey][key] = (data.monthly[monthKey][key] || 0) + amount;
+                } else {
+                    data.monthly[monthKey][key] = amount;
+                }
+            }
+            
+            saveData();
+            closeExpenseModal();
+            
+            // Refresh UI
+            updateHome();
+            updateDailyPage();
+            updateMonthlyPage();
+            
+            // If history open and same month, refresh
+            const historySection = document.getElementById('history');
+            if (!historySection.classList.contains('hidden') && 
+                document.getElementById('history-month-picker').value === monthKey) {
+                loadHistory();
+            }
+        }
+
+        // ==================== DATA EXPORT/IMPORT ====================
+        function exportData() {
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `expense-backup-${getCurrentMonthKey()}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function importDataPrompt() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.json';
+            input.onchange = e => {
+                const file = e.target.files[0];
+                if (!file) return;
+                
+                const reader = new FileReader();
+                reader.onload = ev => {
+                    try {
+                        const imported = JSON.parse(ev.target.result);
+                        if (imported.daily && imported.monthly && imported.settings) {
+                            if (confirm('確定要匯入資料嗎？\n現有記錄將被覆蓋！')) {
+                                data = imported;
+                                saveData();
+                                location.reload(); // refresh everything
+                            }
+                        } else {
+                            alert('檔案格式不正確');
+                        }
+                    } catch (err) {
+                        alert('讀取失敗：' + err.message);
+                    }
+                };
+                reader.readAsText(file);
+            };
+            input.click();
+        }
+
+        // ==================== INIT ====================
+        function init() {
+            loadData();
+            updateDateDisplay();
+            
+            // Show home
+            document.getElementById('home').classList.add('active');
+            
+            // Initial UI updates
+            updateHome();
+            
+            // Set default month picker to current
+            const picker = document.getElementById('history-month-picker');
+            picker.value = getCurrentMonthKey();
+            
+            // Keyboard support for modal
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape') {
+                    const modal = document.getElementById('expense-modal');
+                    if (!modal.classList.contains('hidden')) {
+                        closeExpenseModal();
+                    } else {
+                        // go back to home if not home
+                        const active = document.querySelector('.section.active');
+                        if (active && active.id !== 'home') {
+                            showSection('home');
+                        }
+                    }
+                }
+                if (e.key === 'Enter') {
+                    const modal = document.getElementById('expense-modal');
+                    if (!modal.classList.contains('hidden')) {
+                        e.preventDefault();
+                        confirmExpenseModal();
+                    }
+                }
+            });
+            
+            // Auto update home every minute (for date change)
+            setInterval(() => {
+                const newToday = getTodayKey();
+                // If date changed, refresh
+                if (document.getElementById('home').classList.contains('active')) {
+                    updateHome();
+                }
+            }, 60000);
+            
+            // Welcome toast on first load? (optional)
+            // if (!localStorage.getItem('expenseData_v2')) showToast('歡迎使用記帳本！');
+            
+            console.log('%c[記帳本] Web App initialized successfully', 'color:#10b981');
+        }
+
+        function showSection(sectionId) {
+            // Hide all
+            document.querySelectorAll('.section').forEach(s => {
+                s.classList.remove('active');
+                s.style.display = 'none';
+            });
+            
+            // Show target
+            const target = document.getElementById(sectionId);
+            target.style.display = 'block';
+            target.classList.add('active');
+            
+            // Page specific init
+            if (sectionId === 'daily') {
+                updateDailyPage();
+            } else if (sectionId === 'monthly') {
+                updateMonthlyPage();
+            } else if (sectionId === 'history') {
+                // picker already set, user clicks load or auto?
+                // Auto load current month on open
+                const picker = document.getElementById('history-month-picker');
+                if (!picker.value) picker.value = getCurrentMonthKey();
+                loadHistory();
+            } else if (sectionId === 'settings') {
+                updateSettingsPage();
+            } else if (sectionId === 'home') {
+                updateHome();
+            }
+        }
+
+        // Boot
         window.onload = init;
     </script>
 </body>
