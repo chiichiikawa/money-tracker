@@ -1155,12 +1155,12 @@
             if (mode === 'edit') {
                 amountInput.value = currentVal;
                 confirmBtnText.textContent = '確認修改';
-                quickContainer.textContent = '直接輸入新總額';
+                quickContainer.textContent = `目前總額：${formatMoney(currentVal)} → 直接輸入新總額`;
             } else {
                 amountInput.value = '';
                 amountInput.placeholder = '輸入金額';
                 confirmBtnText.textContent = '確認新增';
-                quickContainer.textContent = '或使用快速按鈕';
+                quickContainer.textContent = `目前已有：${formatMoney(currentVal)}，將會疊加`;
             }
             
             amountInput.focus();
