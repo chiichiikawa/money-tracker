@@ -210,7 +210,7 @@
                     </div>
                     <div class="flex-1 min-w-0">
                         <div class="font-bold text-xl text-slate-800">每日記錄</div>
-                        <div class="text-emerald-600 text-sm">今日上限</div>
+                        <div class="text-emerald-600 text-sm">車錢 + 飯錢 • 今日上限 $320</div>
                     </div>
                     <i class="fa-solid fa-chevron-right text-emerald-400 group-hover:text-emerald-500 transition-colors"></i>
                 </div>
@@ -225,7 +225,7 @@
                     </div>
                     <div class="flex-1 min-w-0">
                         <div class="font-bold text-xl text-slate-800">每月記錄</div>
-                        <div class="text-emerald-600 text-sm">每月預算</div>
+                        <div class="text-emerald-600 text-sm">9 個類別 • 每月預算</div>
                     </div>
                     <i class="fa-solid fa-chevron-right text-emerald-400 group-hover:text-emerald-500 transition-colors"></i>
                 </div>
@@ -872,17 +872,33 @@
         }
 
         function calculateMonthDailyVariance(monthKey) {
-            let total = 0;
-            const prefix = monthKey + '-';
             const dailyBudget = getDailyBudget();
-            
-            Object.keys(data.daily).forEach(dateKey => {
-                if (dateKey.startsWith(prefix)) {
-                    const day = data.daily[dateKey] || {};
-                    const spent = (day.transport || 0) + (day.food || 0);
-                    total += (dailyBudget - spent);
-                }
-            });
+            let total = 0;
+
+            const [yearStr, monthStr] = monthKey.split('-');
+            const year = parseInt(yearStr);
+            const month = parseInt(monthStr);
+
+            const firstDay = new Date(year, month - 1, 1);
+            const lastDayOfMonth = new Date(year, month, 0);
+
+            const now = new Date();
+            const isCurrentMonth = (year === now.getFullYear() && month === now.getMonth() + 1);
+
+            // For current month, only count up to today. For past months, count full month.
+            let endDate = lastDayOfMonth;
+            if (isCurrentMonth) {
+                endDate = now;
+            }
+
+            // Loop through every calendar day in the range
+            for (let d = new Date(firstDay.getTime()); d <= endDate; d.setDate(d.getDate() + 1)) {
+                const dateKey = getDateKey(d);
+                const dayData = data.daily[dateKey] || {};
+                const spent = (dayData.transport || 0) + (dayData.food || 0);
+                total += (dailyBudget - spent);
+            }
+
             return total;
         }
 
@@ -916,11 +932,17 @@
             surplusEl.textContent = formatMoney(surplus);
             surplusEl.style.color = surplus < 0 ? '#dc2626' : '#059669';
             
-            // Days logged
-            let daysCount = 0;
-            Object.keys(data.daily).forEach(k => { if (k.startsWith(monthKey)) daysCount++; });
+            // Days considered for surplus calculation
+            const [y, m] = monthKey.split('-').map(Number);
+            const first = new Date(y, m-1, 1);
+            const last = new Date(y, m, 0);
+            const isCurr = (y === new Date().getFullYear() && m === new Date().getMonth()+1);
+            const endD = isCurr ? new Date() : last;
+            let totalDays = 0;
+            for (let d = new Date(first); d <= endD; d.setDate(d.getDate()+1)) totalDays++;
+
             document.getElementById('history-days-logged').innerHTML = 
-                `${daysCount} 日有記錄<br><span class="text-emerald-600">每日上限 $${getDailyBudget()}</span>`;
+                `本月計算 ${totalDays} 天<br><span class="text-emerald-600 text-xs">（未記錄日子當 $0 開支）</span>`;
             
             // Categories
             const catContainer = document.getElementById('history-categories');
